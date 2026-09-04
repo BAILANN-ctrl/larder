@@ -1,31 +1,41 @@
 import fetch from "node-fetch";
+import { Product, SearchResult } from "../types/index.js";
 
-// Open Food Facts supports per-country/language subdomains (world.openfoodfacts.org
-// works for all locales and returns localized "product_name_<lang>" fields when
-// available). We use the global "world" endpoint plus explicit lang params rather
-// than switching subdomains, since that keeps a single stable integration point.
 const BASE_URL = "https://world.openfoodfacts.org";
 
-// Supported app languages -> Open Food Facts language codes (they match here,
-// but kept as a map in case OFF ever diverges from our locale codes).
-const LANG_MAP = {
+async function fetchWithRetry(
+  url: string | URL,
+  options: Parameters<typeof fetch>[1] = {},
+  retries: number = 2,
+  delayMs: number = 1000
+): Promise<ReturnType<typeof fetch>> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      if (attempt === retries) throw err;
+      await new Promise((r) => setTimeout(r, delayMs * (attempt + 1)));
+    }
+  }
+  throw new Error("fetchWithRetry: unexpected error");
+}
+
+const LANG_MAP: Record<string, string> = {
   en: "en",
   nl: "nl",
   de: "de",
   fr: "fr",
 };
 
-function resolveLang(lang) {
+function resolveLang(lang: string): string {
   return LANG_MAP[lang] || "en";
 }
 
-/**
- * Pick the best available localized value from an OFF product object.
- * OFF stores localized fields as `${field}_${lang}`, with a generic
- * `${field}` fallback (usually in the product's original language) and
- * sometimes `${field}_en` as a secondary fallback.
- */
-function localized(product, field, lang) {
+function localized(
+  product: Record<string, any>,
+  field: string,
+  lang: string
+): string {
   return (
     product[`${field}_${lang}`] ||
     product[`${field}_en`] ||
@@ -34,22 +44,13 @@ function localized(product, field, lang) {
   );
 }
 
-/**
- * Shape a raw OFF product into the minimal, UI-friendly structure our
- * frontend consumes. Keeping this mapping in one place means the rest of
- * the app never has to know about OFF's raw field names.
- */
-function mapProduct(product, lang) {
+function mapProduct(product: Record<string, any>, lang: string): Product {
   return {
     id: product.code,
     name: localized(product, "product_name", lang) || "Unknown product",
     brand: product.brands || "",
     imageUrl: product.image_front_url || product.image_url || null,
     quantity: product.quantity || "",
-    // Nutritional data is included here but the ROUTE layer decides whether
-    // to strip it out for unauthenticated / non-subscribed users. Keeping
-    // the gating in the route (not here) means this mapper stays a pure
-    // data-shaping function and the access-control logic lives in one place.
     nutriments: product.nutriments
       ? {
           energyKcal100g: product.nutriments["energy-kcal_100g"] ?? null,
@@ -67,7 +68,12 @@ function mapProduct(product, lang) {
   };
 }
 
-export async function searchProducts(query, lang, page = 1, pageSize = 20) {
+export async function searchProducts(
+  query: string,
+  lang: string,
+  page: number = 1,
+  pageSize: number = 20
+): Promise<SearchResult> {
   const offLang = resolveLang(lang);
   const url = new URL(`${BASE_URL}/cgi/search.pl`);
   url.searchParams.set("search_terms", query);
@@ -77,7 +83,6 @@ export async function searchProducts(query, lang, page = 1, pageSize = 20) {
   url.searchParams.set("page", String(page));
   url.searchParams.set("page_size", String(pageSize));
   url.searchParams.set("lc", offLang);
-  // Limit fields returned to keep payloads small.
   url.searchParams.set(
     "fields",
     [
@@ -101,9 +106,8 @@ export async function searchProducts(query, lang, page = 1, pageSize = 20) {
     ].join(",")
   );
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     headers: {
-      // OFF asks integrators to identify their app in the User-Agent.
       "User-Agent": "FoodFinderDemo/1.0 (learning project)",
     },
   });
@@ -112,8 +116,10 @@ export async function searchProducts(query, lang, page = 1, pageSize = 20) {
     throw new Error(`Open Food Facts search failed: ${response.status}`);
   }
 
-  const data = await response.json();
-  const products = (data.products || []).map((p) => mapProduct(p, offLang));
+  const data = (await response.json()) as Record<string, any>;
+  const products = (data.products || []).map((p: Record<string, any>) =>
+    mapProduct(p, offLang)
+  );
 
   return {
     products,
@@ -123,13 +129,16 @@ export async function searchProducts(query, lang, page = 1, pageSize = 20) {
   };
 }
 
-export async function getProductByBarcode(code, lang) {
+export async function getProductByBarcode(
+  code: string,
+  lang: string
+): Promise<Product | null> {
   const offLang = resolveLang(lang);
   const url = `${BASE_URL}/api/v2/product/${encodeURIComponent(
     code
   )}.json?lc=${offLang}`;
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     headers: { "User-Agent": "FoodFinderDemo/1.0 (learning project)" },
   });
 
@@ -137,7 +146,7 @@ export async function getProductByBarcode(code, lang) {
     throw new Error(`Open Food Facts lookup failed: ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as Record<string, any>;
   if (data.status !== 1 || !data.product) {
     return null;
   }

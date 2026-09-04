@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-border: #e2e5e9;
+  --color-text: #1c1e21;
+  --color-muted: #6b7280;
+  --color-primary: #1f7a4d;
+  --color-primary-dark: #16603c;
+  --color-locked: #b45309;
+}
+
+body {
+  @apply bg-bg text-text m-0 font-sans;
+}
+
+.product-grid {
+  @apply grid gap-4;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.product-card {
+  @apply flex flex-col bg-surface border border-border rounded overflow-hidden cursor-pointer text-left shadow transition-all duration-150;
+}
+
+.product-card:hover {
+  @apply -translate-y-0.5;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.product-card__image {
+  @apply aspect-square bg-gray-100 flex items-center justify-center;
+}
+
+.product-card__image img {
+  @apply w-full h-full object-contain;
+}
+
+.product-card__image-placeholder {
+  @apply text-4xl;
+}
+
+.product-card__body {
+  @apply p-3;
+}
+
+.product-card__body h3 {
+  @apply m-0 mb-1 text-base leading-tight;
+}
+
+.product-card__brand {
+  @apply m-0 text-muted text-sm;
+}
+
+.product-card__lock {
+  @apply inline-block mt-2 text-xs text-locked;
+}
+
+.nutrition-table {
+  @apply w-full border-collapse max-w-[400px];
+}
+
+.nutrition-table td {
+  @apply py-1 px-1 border-b border-border;
+}
+
+.nutrition-table td:last-child {
+  @apply text-right tabular-nums;
+}
+
+.locked-notice {
+  @apply bg-amber-50 text-locked p-3 rounded border border-amber-300;
+}
+
+.nutriscore {
+  @apply inline-block py-1 px-2.5 rounded-full font-bold text-sm bg-gray-100 mb-3;
+}
+
+@media (max-width: 480px) {
+  .app__header {
+    @apply flex-col;
+  }
+  .product-detail__header {
+    @apply flex-col;
+  }
+}

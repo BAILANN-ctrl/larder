@@ -1,8 +1,4 @@
-// Static UI strings for each supported language. Product data (names,
-// ingredients) comes from Open Food Facts itself, localized server-side
-// based on the same language code — see the `lang` query param sent to
-// the backend in api.js.
-export const translations = {
+export const translations: Record<string, Record<string, string>> = {
   en: {
     appName: "FoodFinder",
     tagline: "Search packaged foods from Open Food Facts",

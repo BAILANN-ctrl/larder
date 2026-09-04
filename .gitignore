@@ -2,3 +2,13 @@ node_modules/
 dist/
 .env
 *.log
+
+# Next.js
+.next/
+out/
+
+# Prisma
+backend/prisma/migrations/
+
+# TypeScript
+*.tsbuildinfo

@@ -1,38 +1,35 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import {
   createCheckoutSession,
   createBillingPortalSession,
   hasActiveSubscription,
   isStripeConfigured,
 } from "../services/stripeService.js";
-import { getDemoUser, setDemoUserStripeCustomerId } from "../services/demoUserStore.js";
+import {
+  getOrCreateDemoUser,
+  updateDemoUserStripeCustomerId,
+} from "../services/userService.js";
 
 const router = Router();
 
-// Current subscription status for the demo user. The frontend polls this
-// after returning from Stripe Checkout to know whether to unlock nutrition.
-router.get("/status", async (req, res) => {
+router.get("/status", async (req: Request, res: Response) => {
   if (!isStripeConfigured()) {
     return res.json({ configured: false, subscribed: false });
   }
-  const user = getDemoUser();
+  const user = await getOrCreateDemoUser();
   const subscribed = await hasActiveSubscription(user.stripeCustomerId);
   res.json({ configured: true, subscribed, customerId: user.stripeCustomerId });
 });
 
-// Starts a Stripe Checkout session for the demo user's subscription.
-router.post("/checkout", async (req, res) => {
+router.post("/checkout", async (req: Request, res: Response) => {
   if (!isStripeConfigured()) {
     return res.status(503).json({ error: "Stripe is not configured on this server." });
   }
   try {
-    const user = getDemoUser();
+    const user = await getOrCreateDemoUser();
     const session = await createCheckoutSession(user.stripeCustomerId, user.email);
-    // We only learn the real customer id once Checkout completes (webhook),
-    // but Checkout also returns session.customer immediately for redirect-mode
-    // flows; store it optimistically so /status can check it right away.
     if (session.customer) {
-      setDemoUserStripeCustomerId(session.customer);
+      await updateDemoUserStripeCustomerId(session.customer as string);
     }
     res.json({ url: session.url });
   } catch (err) {
@@ -41,10 +38,8 @@ router.post("/checkout", async (req, res) => {
   }
 });
 
-// Lets the demo user manage/cancel their subscription via Stripe's
-// hosted billing portal.
-router.post("/portal", async (req, res) => {
-  const user = getDemoUser();
+router.post("/portal", async (req: Request, res: Response) => {
+  const user = await getOrCreateDemoUser();
   if (!user.stripeCustomerId) {
     return res.status(400).json({ error: "No active Stripe customer for demo user." });
   }
