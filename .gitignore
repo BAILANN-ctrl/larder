@@ -7,6 +7,10 @@ dist/
 .next/
 out/
 
+# Agents skills cache
+frontend/.agents/
+frontend/skills-lock.json
+
 # Prisma
 
 # TypeScript
