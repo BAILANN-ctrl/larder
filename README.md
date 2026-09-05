@@ -72,7 +72,7 @@ Make sure MySQL is running, then update `DATABASE_URL` in `backend/.env`:
 ```bash
 cd backend
 cp .env.example .env
-npx prisma db push   # syncs the schema (users + searches) to MySQL
+npx prisma migrate dev   # runs the checked-in migration (users + searches tables)
 ```
 
 ### 2. Backend
@@ -192,3 +192,27 @@ Stripe's signature verification needs the raw body bytes.
 - **React 18** for UI components
 - **Open Food Facts API** for product data
 - **Stripe SDK** for subscription management
+
+## Known limitations
+
+- **Single demo user, no authentication.** There is no login/signup; every
+  request resolves to the one seeded demo user (`demo@foodfinder.local`). All
+  recent searches and subscription state are shared/single-tenant.
+- **Nutrition gating trusts the demo user's Stripe customer.** A client that
+  impersonates the demo user's Stripe customer ID would receive unlocked
+  nutrition. With real per-user auth, access must be tied to the authenticated
+  account, not a shared demo customer.
+- **Access control is checked against Stripe per request.** The DB
+  `subscriptionStatus` column records what the webhook observed but is not
+  itself used for gating; each product request makes a Stripe call. This adds
+  latency and a dependency on Stripe availability at request time.
+- **Search pagination is minimal.** The UI shows only the first page of OFF
+  results; there is no way to page deeper in the interface.
+- **Open Food Facts data quality varies.** Products frequently lack images,
+  ingredients, or nutrition for a given language; the app gracefully falls back
+  (English → default → empty) but some products will show minimal data.
+- **Stripe webhooks require a public URL in production.** The included local
+  workflow relies on the Stripe CLI (`stripe listen --forward-to`) to deliver
+  webhooks; a deployed backend needs an externally reachable endpoint.
+- **No rate limiting or request throttling.** Repeated searches hit OFF and
+  Prisma without protection, so abuse is unmitigated.

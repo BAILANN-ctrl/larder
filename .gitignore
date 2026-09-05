@@ -8,7 +8,6 @@ dist/
 out/
 
 # Prisma
-backend/prisma/migrations/
 
 # TypeScript
 *.tsbuildinfo
