@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mapProduct, localized, resolveLang } from "../src/services/openFoodFacts.js";
+import { mapProduct, localized, resolveLang, sanitizeQuery, isCompleteProduct } from "../src/services/openFoodFacts.js";
 
 describe("resolveLang (OFF language map)", () => {
   it("maps all supported languages and falls back to English", () => {
@@ -89,5 +89,37 @@ describe("mapProduct (missing / incomplete data handling)", () => {
       "en"
     );
     expect(product.imageUrl).toBe("http://img/backup.jpg");
+  });
+});
+
+describe("sanitizeQuery", () => {
+  it("trims whitespace and collapses multiple spaces", () => {
+    expect(sanitizeQuery("  brown rice   ")).toBe("brown rice");
+    expect(sanitizeQuery("a   b    c")).toBe("a b c");
+  });
+
+  it("returns empty string for empty or whitespace-only input", () => {
+    expect(sanitizeQuery("")).toBe("");
+    expect(sanitizeQuery("   ")).toBe("");
+  });
+
+  it("strips angle brackets", () => {
+    expect(sanitizeQuery('<script>alert("x")</script>')).toBe(
+      'scriptalert("x")/script'
+    );
+  });
+});
+
+describe("isCompleteProduct", () => {
+  it("accepts products with an id and a real name", () => {
+    expect(isCompleteProduct({ id: "1", name: "Brown rice", brand: "", imageUrl: null, quantity: "", nutriments: null, nutriscoreGrade: null, ingredientsText: "" })).toBe(true);
+  });
+
+  it("rejects products with no id", () => {
+    expect(isCompleteProduct({ id: "", name: "Brown rice", brand: "", imageUrl: null, quantity: "", nutriments: null, nutriscoreGrade: null, ingredientsText: "" })).toBe(false);
+  });
+
+  it("rejects products with an 'Unknown product' placeholder name", () => {
+    expect(isCompleteProduct({ id: "1", name: "Unknown product", brand: "", imageUrl: null, quantity: "", nutriments: null, nutriscoreGrade: null, ingredientsText: "" })).toBe(false);
   });
 });

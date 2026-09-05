@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { searchProducts, getProductByBarcode } from "../services/openFoodFacts.js";
+import { searchProducts, getProductByBarcode, sanitizeQuery } from "../services/openFoodFacts.js";
 import { hasActiveSubscription } from "../services/stripeService.js";
 import { getOrCreateDemoUser } from "../services/userService.js";
 import { recordSearch } from "../services/searchService.js";
@@ -37,7 +37,7 @@ async function getDemoAccess(): Promise<{ user: DemoUser; unlocked: boolean }> {
 }
 
 router.get("/search", async (req: Request, res: Response) => {
-  const query = String(req.query.q || "").trim();
+  const query = sanitizeQuery(String(req.query.q || ""));
   if (!query) {
     return res.status(400).json({ error: "Query parameter 'q' is required." });
   }
@@ -54,8 +54,18 @@ router.get("/search", async (req: Request, res: Response) => {
       products: result.products.map((p) => applyAccessControl(p, unlocked)),
       unlocked,
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
+    const message = err?.message || "Failed to fetch products from Open Food Facts.";
+    if (message.includes("rate limit")) {
+      return res.status(429).json({ error: "Open Food Facts is rate-limited right now. Try again shortly." });
+    }
+    if (message.includes("temporarily unavailable")) {
+      return res.status(503).json({ error: "Open Food Facts is temporarily unavailable. Try again shortly." });
+    }
+    if (message.includes("invalid response")) {
+      return res.status(502).json({ error: "Open Food Facts returned unreadable data. Try refining your search." });
+    }
     res.status(502).json({ error: "Failed to fetch products from Open Food Facts." });
   }
 });
@@ -70,8 +80,18 @@ router.get("/:code", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Product not found." });
     }
     res.json({ product: applyAccessControl(product, unlocked), unlocked });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
+    const message = err?.message || "";
+    if (message.includes("rate limit")) {
+      return res.status(429).json({ error: "Open Food Facts is rate-limited right now. Try again shortly." });
+    }
+    if (message.includes("temporarily unavailable")) {
+      return res.status(503).json({ error: "Open Food Facts is temporarily unavailable. Try again shortly." });
+    }
+    if (message.includes("invalid response")) {
+      return res.status(502).json({ error: "Open Food Facts returned unreadable data for this barcode." });
+    }
     res.status(502).json({ error: "Failed to fetch product from Open Food Facts." });
   }
 });

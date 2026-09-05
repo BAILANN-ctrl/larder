@@ -4,6 +4,7 @@ import request from "supertest";
 vi.mock("../src/services/openFoodFacts.js", () => ({
   searchProducts: vi.fn(),
   getProductByBarcode: vi.fn(),
+  sanitizeQuery: vi.fn((raw: string) => raw.trim()),
 }));
 vi.mock("../src/services/stripeService.js", () => ({
   hasActiveSubscription: vi.fn(),
@@ -27,7 +28,7 @@ import { Product } from "../src/types/index.js";
 
 const demoUser = {
   id: "demo-user-1",
-  email: "demo@foodfinder.local",
+  email: "demo@larder.local",
   name: "Demo User",
   stripeCustomerId: null,
   subscriptionStatus: "inactive",

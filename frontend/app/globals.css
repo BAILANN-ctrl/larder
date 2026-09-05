@@ -1,89 +1,232 @@
+@import url("https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --color-bg: #f7f8fa;
-  --color-surface: #ffffff;
-  --color-border: #e2e5e9;
-  --color-text: #1c1e21;
-  --color-muted: #6b7280;
-  --color-primary: #1f7a4d;
-  --color-primary-dark: #16603c;
-  --color-locked: #b45309;
+  --font-satoshi: "Satoshi", "Helvetica Neue", Arial, sans-serif;
+  --font-space: "Space Grotesk";
+
+  --color-cream: 246 240 228;
+  --color-linen: 252 249 241;
+  --color-paper: 255 253 246;
+  --color-espresso: 33 26 18;
+  --color-cocoa: 74 64 51;
+  --color-taupe: 110 97 83;
+  --color-olive: 91 106 69;
+  --color-clay: 180 85 45;
+  --color-gold: 196 154 60;
+
+  --ease-luxe: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-cream: 23 19 15;
+    --color-linen: 32 27 21;
+    --color-paper: 42 36 28;
+    --color-espresso: 237 229 215;
+    --color-cocoa: 198 187 169;
+    --color-taupe: 156 143 126;
+    --color-olive: 151 163 123;
+    --color-clay: 201 111 71;
+    --color-gold: 203 163 82;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
-  @apply bg-bg text-text m-0 font-sans;
+  background-color: rgb(var(--color-cream));
+  color: rgb(var(--color-espresso));
+  font-family: var(--font-satoshi), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  background-image: radial-gradient(
+      1100px 560px at 88% -8%,
+      rgba(196, 154, 60, 0.12),
+      transparent 60%
+    ),
+    radial-gradient(900px 540px at -12% 24%, rgba(91, 106, 69, 0.09), transparent 55%),
+    radial-gradient(760px 420px at 50% 118%, rgba(180, 85, 45, 0.07), transparent 60%);
+  background-attachment: fixed;
 }
 
-.product-grid {
-  @apply grid gap-4;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+::selection {
+  background: rgb(var(--color-espresso));
+  color: rgb(var(--color-cream));
 }
 
-.product-card {
-  @apply flex flex-col bg-surface border border-border rounded overflow-hidden cursor-pointer text-left shadow transition-all duration-150;
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-espresso) / 0.2);
+  border-radius: 999px;
+  border: 3px solid rgb(var(--color-cream));
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--color-espresso) / 0.34);
 }
 
-.product-card:hover {
-  @apply -translate-y-0.5;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+:focus-visible {
+  outline: 2px solid rgb(var(--color-olive));
+  outline-offset: 3px;
 }
 
-.product-card__image {
-  @apply aspect-square bg-gray-100 flex items-center justify-center;
+/* ---------- Grain / texture ---------- */
+.grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  opacity: 0.04;
 }
 
-.product-card__image img {
-  @apply w-full h-full object-contain;
+/* ---------- Eyebrow tags ---------- */
+.eyebrow {
+  font-family: var(--font-space), ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgb(var(--color-olive));
 }
 
-.product-card__image-placeholder {
-  @apply text-4xl;
+.text-balance {
+  text-wrap: balance;
 }
 
-.product-card__body {
-  @apply p-3;
+/* ---------- Inline pill images ---------- */
+.img-pill {
+  display: inline-block;
+  border-radius: 999px;
+  object-fit: cover;
+  vertical-align: middle;
+  box-shadow: 0 0 0 1px rgb(var(--color-espresso) / 0.08);
+  filter: saturate(0.92) contrast(1.06);
+}
+.img-pill.dark {
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.16);
 }
 
-.product-card__body h3 {
-  @apply m-0 mb-1 text-base leading-tight;
+/* ---------- Vault stacked cards ---------- */
+.stack-card {
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
-.product-card__brand {
-  @apply m-0 text-muted text-sm;
+/* ---------- Scroll reveal (GPU-safe, motion only) ---------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(40px);
+  filter: blur(10px);
+  transition:
+    opacity 0.8s var(--ease-luxe),
+    transform 0.9s var(--ease-luxe),
+    filter 0.9s var(--ease-luxe);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
 }
 
-.product-card__lock {
-  @apply inline-block mt-2 text-xs text-locked;
+/* ---------- Marquee ---------- */
+.marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 42s linear infinite;
 }
 
-.nutrition-table {
-  @apply w-full border-collapse max-w-[400px];
+/* ---------- Loading dots ---------- */
+.dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgb(var(--color-taupe));
+  animation: dotPulse 1.2s var(--ease-luxe) infinite;
+}
+.dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.dot:nth-child(3) {
+  animation-delay: 0.3s;
 }
 
-.nutrition-table td {
-  @apply py-1 px-1 border-b border-border;
-}
-
-.nutrition-table td:last-child {
-  @apply text-right tabular-nums;
-}
-
-.locked-notice {
-  @apply bg-amber-50 text-locked p-3 rounded border border-amber-300;
-}
-
-.nutriscore {
-  @apply inline-block py-1 px-2.5 rounded-full font-bold text-sm bg-gray-100 mb-3;
-}
-
-@media (max-width: 480px) {
-  .app__header {
-    @apply flex-col;
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
-  .product-detail__header {
-    @apply flex-col;
+  .reveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+  .marquee-track,
+  .dot {
+    animation: none !important;
+  }
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Reduced transparency ---------- */
+@media (prefers-reduced-transparency: reduce) {
+  .grain {
+    display: none;
+  }
+  .nav-shell,
+  header nav,
+  header nav > * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: rgb(var(--color-linen)) !important;
+  }
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes dotPulse {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-4px);
   }
 }

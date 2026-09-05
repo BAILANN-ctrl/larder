@@ -1,7 +1,7 @@
 import { prisma } from "../lib/prisma.js";
 import { DemoUser } from "../types/index.js";
 
-const DEMO_USER_EMAIL = "demo@foodfinder.local";
+const DEMO_USER_EMAIL = "demo@larder.local";
 
 export async function getOrCreateDemoUser(): Promise<DemoUser> {
   const user = await prisma.user.upsert({

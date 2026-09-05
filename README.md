@@ -1,4 +1,4 @@
-# FoodFinder
+# Larder
 
 A full-stack app for searching packaged food products via [Open Food
 Facts](https://world.openfoodfacts.org), with basic info (name, brand,
@@ -17,7 +17,7 @@ and French via a manual language selector.
 ## Project structure
 
 ```
-foodfinder/
+larder/
   backend/
     prisma/
       schema.prisma          # Database schema
@@ -196,7 +196,7 @@ Stripe's signature verification needs the raw body bytes.
 ## Known limitations
 
 - **Single demo user, no authentication.** There is no login/signup; every
-  request resolves to the one seeded demo user (`demo@foodfinder.local`). All
+  request resolves to the one seeded demo user (`demo@larder.local`). All
   recent searches and subscription state are shared/single-tenant.
 - **Nutrition gating trusts the demo user's Stripe customer.** A client that
   impersonates the demo user's Stripe customer ID would receive unlocked

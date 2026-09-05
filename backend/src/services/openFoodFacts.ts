@@ -2,6 +2,7 @@ import fetch from "node-fetch";
 import { Product, SearchResult } from "../types/index.js";
 
 const BASE_URL = "https://world.openfoodfacts.org";
+const REQUEST_TIMEOUT_MS = 10000;
 
 async function fetchWithRetry(
   url: string | URL,
@@ -11,8 +12,14 @@ async function fetchWithRetry(
 ): Promise<ReturnType<typeof fetch>> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      return await fetch(url, options);
-    } catch (err) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        return await fetch(url, { ...options, signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    } catch (err: any) {
       if (attempt === retries) throw err;
       await new Promise((r) => setTimeout(r, delayMs * (attempt + 1)));
     }
@@ -29,6 +36,12 @@ const LANG_MAP: Record<string, string> = {
 
 export function resolveLang(lang: string): string {
   return LANG_MAP[lang] || "en";
+}
+
+export function sanitizeQuery(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  return trimmed.replace(/\s+/g, " ").replace(/[<>]/g, "").trim();
 }
 
 export function localized(
@@ -51,7 +64,7 @@ export function mapProduct(product: Record<string, any>, lang: string): Product 
     brand: product.brands || "",
     imageUrl: product.image_front_url || product.image_url || null,
     quantity: product.quantity || "",
-    nutriments: product.nutriments
+    nutriments: product.nutriments && typeof product.nutriments === "object"
       ? {
           energyKcal100g: product.nutriments["energy-kcal_100g"] ?? null,
           fat100g: product.nutriments["fat_100g"] ?? null,
@@ -68,6 +81,10 @@ export function mapProduct(product: Record<string, any>, lang: string): Product 
   };
 }
 
+export function isCompleteProduct(p: Product): boolean {
+  return Boolean(p.id && p.name && p.name !== "Unknown product");
+}
+
 export async function searchProducts(
   query: string,
   lang: string,
@@ -75,8 +92,9 @@ export async function searchProducts(
   pageSize: number = 20
 ): Promise<SearchResult> {
   const offLang = resolveLang(lang);
+  const safeQuery = sanitizeQuery(query);
   const url = new URL(`${BASE_URL}/cgi/search.pl`);
-  url.searchParams.set("search_terms", query);
+  url.searchParams.set("search_terms", safeQuery);
   url.searchParams.set("search_simple", "1");
   url.searchParams.set("action", "process");
   url.searchParams.set("json", "1");
@@ -108,18 +126,31 @@ export async function searchProducts(
 
   const response = await fetchWithRetry(url, {
     headers: {
-      "User-Agent": "FoodFinderDemo/1.0 (learning project)",
+      "User-Agent": "LarderDemo/1.0 (learning project)",
     },
   });
 
   if (!response.ok) {
+    if (response.status === 429) {
+      throw new Error("Open Food Facts rate limit exceeded");
+    }
+    if (response.status === 503) {
+      throw new Error("Open Food Facts temporarily unavailable");
+    }
     throw new Error(`Open Food Facts search failed: ${response.status}`);
   }
 
-  const data = (await response.json()) as Record<string, any>;
-  const products = (data.products || []).map((p: Record<string, any>) =>
-    mapProduct(p, offLang)
-  );
+  let data: Record<string, any>;
+  try {
+    data = (await response.json()) as Record<string, any>;
+  } catch (err) {
+    throw new Error("Open Food Facts returned an invalid response");
+  }
+
+  const rawProducts = Array.isArray(data.products) ? data.products : [];
+  const products = rawProducts
+    .map((p: Record<string, any>) => mapProduct(p, offLang))
+    .filter(isCompleteProduct);
 
   return {
     products,
@@ -139,14 +170,26 @@ export async function getProductByBarcode(
   )}.json?lc=${offLang}`;
 
   const response = await fetchWithRetry(url, {
-    headers: { "User-Agent": "FoodFinderDemo/1.0 (learning project)" },
+    headers: { "User-Agent": "LarderDemo/1.0 (learning project)" },
   });
 
   if (!response.ok) {
+    if (response.status === 429) {
+      throw new Error("Open Food Facts rate limit exceeded");
+    }
+    if (response.status === 503) {
+      throw new Error("Open Food Facts temporarily unavailable");
+    }
     throw new Error(`Open Food Facts lookup failed: ${response.status}`);
   }
 
-  const data = (await response.json()) as Record<string, any>;
+  let data: Record<string, any>;
+  try {
+    data = (await response.json()) as Record<string, any>;
+  } catch (err) {
+    throw new Error("Open Food Facts returned an invalid response");
+  }
+
   if (data.status !== 1 || !data.product) {
     return null;
   }

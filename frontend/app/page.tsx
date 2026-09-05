@@ -3,11 +3,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { searchProducts, getProduct, getBillingStatus, getRecentSearches } from "@/lib/api";
-import LanguageSelector from "@/components/LanguageSelector";
 import SearchBar from "@/components/SearchBar";
 import ProductCard from "@/components/ProductCard";
 import ProductDetail from "@/components/ProductDetail";
-import SubscriptionControl from "@/components/SubscriptionControl";
+import Hero from "@/components/Hero";
+import Features from "@/components/Features";
+import Testimonials from "@/components/Testimonials";
+import Marquee from "@/components/Marquee";
+import Reveal from "@/components/Reveal";
+import { ScrollTrigger } from "@/lib/gsap";
 import { Product, BillingStatus } from "@/types";
 
 export default function Home() {
@@ -68,9 +72,9 @@ export default function Home() {
         const data = await searchProducts(searchTerm, lang);
         setResults(data.products);
         refreshRecentSearches();
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
-        setError(t("error"));
+        setError(err?.message || t("error"));
       } finally {
         setLoading(false);
       }
@@ -80,7 +84,11 @@ export default function Home() {
 
   useEffect(() => {
     if (query) runSearch(query);
-  }, [lang]);
+  }, [lang, runSearch]);
+
+  useEffect(() => {
+    ScrollTrigger.refresh();
+  }, [hasSearched, selectedProduct]);
 
   async function handleSelectProduct(id: string) {
     setLoading(true);
@@ -88,99 +96,116 @@ export default function Home() {
     try {
       const data = await getProduct(id, lang);
       setSelectedProduct(data.product);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError(t("error"));
+      setError(err?.message || t("error"));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="max-w-[1100px] mx-auto px-4 py-6 pb-16">
-      <header className="app__header flex justify-between items-start flex-wrap gap-4 mb-6">
-        <div>
-          <h1 className="m-0 text-[1.75rem]">{t("appName")}</h1>
-          <p className="mt-1 text-muted">{t("tagline")}</p>
-        </div>
-        <div className="app__header-controls flex items-center gap-3">
-          <SubscriptionControl
-            subscribed={billing.subscribed}
-            configured={billing.configured}
-          />
-          <LanguageSelector />
-        </div>
-      </header>
-
+    <div className="min-h-[100dvh] pb-24">
       {checkoutNotice && (
-        <div
-          className={`p-3 rounded mb-4 text-sm ${
-            checkoutNotice === "success"
-              ? "bg-green-50 text-primary-dark"
-              : "bg-red-50 text-red-800"
-          }`}
-        >
-          {checkoutNotice === "success"
-            ? t("checkoutSuccess")
-            : t("checkoutCancelled")}
+        <div className="px-4 pt-4">
+          <Reveal>
+            <div
+              className={`mx-auto flex max-w-[1200px] items-center gap-3 rounded-full px-5 py-3 text-sm ring-1 ${
+                checkoutNotice === "success"
+                  ? "bg-olive/10 text-olive ring-olive/25"
+                  : "bg-cocoa/10 text-cocoa ring-cocoa/25"
+              }`}
+            >
+              <span className="h-2 w-2 shrink-0 rounded-full bg-current opacity-60" />
+              {checkoutNotice === "success"
+                ? t("checkoutSuccess")
+                : t("checkoutCancelled")}
+            </div>
+          </Reveal>
         </div>
       )}
 
-      <main>
-        {!selectedProduct && (
-          <SearchBar onSearch={runSearch} initialQuery={query} />
+      <main className="w-full max-w-full overflow-x-clip">
+        {!selectedProduct && !hasSearched && (
+          <Hero onSearch={runSearch} recentSearches={recentSearches} />
         )}
 
-        {!loading && !selectedProduct && recentSearches.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 mb-6">
-            <span className="text-sm text-muted">{t("recentSearches")}:</span>
-            {recentSearches.map((term) => (
-              <button
-                key={term}
-                onClick={() => runSearch(term)}
-                className="py-1 px-3 rounded-full text-sm border border-border bg-surface hover:bg-gray-100 cursor-pointer"
-              >
-                {term}
-              </button>
-            ))}
+        {selectedProduct ? (
+          <div className="px-4 py-10 md:py-16">
+            <ProductDetail
+              product={selectedProduct}
+              onBack={() => setSelectedProduct(null)}
+              subscribed={billing.subscribed}
+              configured={billing.configured}
+            />
           </div>
-        )}
+        ) : (
+          hasSearched && (
+            <section id="search" className="mx-auto max-w-[1200px] px-4 py-14 md:py-20">
+              <Reveal>
+                <SearchBar onSearch={runSearch} initialQuery={query} />
+              </Reveal>
 
-        {loading && (
-          <p className="text-muted text-center py-8">{t("loading")}</p>
-        )}
-        {error && (
-          <p className="text-red-700 text-center py-8">{error}</p>
-        )}
+              {loading && (
+                <div className="flex items-center justify-center gap-3 py-24 font-mono text-[0.68rem] uppercase tracking-[0.22em] text-taupe">
+                  {t("loading")}
+                  <span className="flex items-center gap-1">
+                    <span className="dot" />
+                    <span className="dot" />
+                    <span className="dot" />
+                  </span>
+                </div>
+              )}
 
-        {!loading && !error && selectedProduct && (
-          <ProductDetail
-            product={selectedProduct}
-            onBack={() => setSelectedProduct(null)}
-            subscribed={billing.subscribed}
-          />
-        )}
+              {!loading && error && (
+                <div className="mx-auto max-w-md rounded-[2rem] bg-espresso p-10 text-center text-cream shadow-float ring-1 ring-white/10">
+                  <p className="font-mono text-[0.68rem] uppercase tracking-[0.22em] text-cream/70">
+                    {error}
+                  </p>
+                </div>
+              )}
 
-        {!loading && !error && !selectedProduct && (
-          <>
-            {!hasSearched && (
-              <p className="text-muted text-center py-8">{t("startPrompt")}</p>
-            )}
-            {hasSearched && results.length === 0 && (
-              <p className="text-muted text-center py-8">{t("noResults")}</p>
-            )}
-            <div className="product-grid">
-              {results.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onSelect={handleSelectProduct}
-                />
-              ))}
-            </div>
-          </>
+              {!loading && !error && results.length === 0 && (
+                <div className="py-20 text-center md:py-28">
+                  <Reveal>
+                    <p className="font-mono text-[0.68rem] uppercase tracking-[0.22em] text-taupe">
+                      0 {t("results")}
+                    </p>
+                    <h2 className="mt-4 font-display text-4xl tracking-[-0.02em] text-espresso md:text-5xl">
+                      {t("noResults")}
+                    </h2>
+                    <p className="mt-4 text-cocoa/80">{t("noResultsHint")}</p>
+                  </Reveal>
+                </div>
+              )}
+
+              {!loading && !error && results.length > 0 && (
+                <>
+                  <Reveal delay={100}>
+                    <p className="mt-12 font-mono text-[0.68rem] uppercase tracking-[0.22em] text-taupe">
+                      {results.length} {t("results")}
+                    </p>
+                  </Reveal>
+                  <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {results.map((product, i) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        onSelect={handleSelectProduct}
+                        index={i}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </section>
+          )
         )}
       </main>
+
+      <Marquee />
+      <Features />
+      <Testimonials />
     </div>
   );
 }

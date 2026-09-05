@@ -16,7 +16,7 @@ import { getOrCreateDemoUser } from "../src/services/userService.js";
 
 const demoUser = {
   id: "demo-user-1",
-  email: "demo@foodfinder.local",
+  email: "demo@larder.local",
   name: "Demo User",
   stripeCustomerId: null,
   subscriptionStatus: "inactive",

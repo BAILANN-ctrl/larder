@@ -19,7 +19,7 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | null>(null);
 
-const STORAGE_KEY = "foodfinder-lang";
+const STORAGE_KEY = "larder-lang";
 const DEFAULT_LANG = "en";
 
 function getInitialLang(): string {
