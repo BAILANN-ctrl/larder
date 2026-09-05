@@ -67,7 +67,15 @@ larder/
 
 ### 1. Database (MySQL)
 
-Make sure MySQL is running, then update `DATABASE_URL` in `backend/.env`:
+Make sure MySQL is running, then update `DATABASE_URL` in `backend/.env`. If
+the database named in `DATABASE_URL` doesn't exist yet (e.g. `larder`), create
+it first:
+
+```bash
+mysql -u root -p -e "CREATE DATABASE larder;"
+```
+
+Then set up the schema:
 
 ```bash
 cd backend
