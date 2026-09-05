@@ -4,18 +4,14 @@ import { DemoUser } from "../types/index.js";
 const DEMO_USER_EMAIL = "demo@foodfinder.local";
 
 export async function getOrCreateDemoUser(): Promise<DemoUser> {
-  let user = await prisma.user.findUnique({
+  const user = await prisma.user.upsert({
     where: { email: DEMO_USER_EMAIL },
+    update: {},
+    create: {
+      email: DEMO_USER_EMAIL,
+      name: "Demo User",
+    },
   });
-
-  if (!user) {
-    user = await prisma.user.create({
-      data: {
-        email: DEMO_USER_EMAIL,
-        name: "Demo User",
-      },
-    });
-  }
 
   return {
     id: user.id,

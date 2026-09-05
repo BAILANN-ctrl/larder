@@ -2,30 +2,37 @@ import { Router, Request, Response } from "express";
 import { searchProducts, getProductByBarcode } from "../services/openFoodFacts.js";
 import { hasActiveSubscription } from "../services/stripeService.js";
 import { getOrCreateDemoUser } from "../services/userService.js";
-import { Product } from "../types/index.js";
+import { recordSearch } from "../services/searchService.js";
+import { Product, DemoUser } from "../types/index.js";
 
 const router = Router();
-const SUPPORTED_LANGS = ["en", "nl", "de", "fr"];
+export const SUPPORTED_LANGS = ["en", "nl", "de", "fr"];
 
-function resolveLang(query: any): string {
+export function resolveLang(query: any): string {
   const lang = String(query.lang || "en").toLowerCase();
   return SUPPORTED_LANGS.includes(lang) ? lang : "en";
 }
 
-function applyAccessControl(product: Product, canViewNutrition: boolean): Product {
+export function applyAccessControl(
+  product: Product,
+  canViewNutrition: boolean
+): Product {
   if (canViewNutrition) return product;
   const { nutriments, nutriscoreGrade, ...rest } = product;
   return { ...rest, nutriments: null, nutriscoreGrade: null, locked: true };
 }
 
-async function canViewNutrition(): Promise<boolean> {
+async function getDemoAccess(): Promise<{ user: DemoUser; unlocked: boolean }> {
   const user = await getOrCreateDemoUser();
-  if (!user.stripeCustomerId) return false;
+  if (!user.stripeCustomerId) return { user, unlocked: false };
   try {
-    return await hasActiveSubscription(user.stripeCustomerId);
+    return {
+      user,
+      unlocked: await hasActiveSubscription(user.stripeCustomerId),
+    };
   } catch (err: any) {
     console.error("Subscription check failed:", err.message);
-    return false;
+    return { user, unlocked: false };
   }
 }
 
@@ -39,7 +46,8 @@ router.get("/search", async (req: Request, res: Response) => {
   const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
 
   try {
-    const unlocked = await canViewNutrition();
+    const { user, unlocked } = await getDemoAccess();
+    await recordSearch(user.id, query);
     const result = await searchProducts(query, lang, page);
     res.json({
       ...result,
@@ -56,7 +64,7 @@ router.get("/:code", async (req: Request, res: Response) => {
   const lang = resolveLang(req.query);
 
   try {
-    const unlocked = await canViewNutrition();
+    const { unlocked } = await getDemoAccess();
     const product = await getProductByBarcode(req.params.code, lang);
     if (!product) {
       return res.status(404).json({ error: "Product not found." });

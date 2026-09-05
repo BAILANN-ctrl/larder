@@ -11,7 +11,8 @@ and French via a manual language selector.
 - **Backend:** Node.js + Express + TypeScript, Prisma ORM + MySQL,
   `node-fetch` for the Open Food Facts HTTP API, Stripe SDK for subscriptions.
 - **Frontend:** Next.js 14 + React 18 + TypeScript, Tailwind CSS.
-- **Database:** MySQL via Prisma (stores user data + subscription status).
+- **Database:** MySQL via Prisma (stores the demo user, subscription status,
+  and recent search history).
 
 ## Project structure
 
@@ -27,13 +28,17 @@ foodfinder/
         products.ts          # Product search & lookup routes
         billing.ts           # Stripe checkout, portal, and status routes
         webhook.ts           # Stripe webhook receiver
+        searches.ts          # Recent searches route
       services/
         openFoodFacts.ts     # Open Food Facts API client
+        searchService.ts     # Recent-search persistence
         stripeService.ts     # Stripe SDK wrapper
         userService.ts       # User database operations
       types/
         index.ts             # TypeScript type definitions
-      server.ts              # Express app entry point
+      app.ts                 # Express app (no listen, reusable in tests)
+      server.ts              # App entry point
+    tests/                   # Vitest + supertest automated tests
     tsconfig.json
   frontend/
     app/
@@ -67,7 +72,7 @@ Make sure MySQL is running, then update `DATABASE_URL` in `backend/.env`:
 ```bash
 cd backend
 cp .env.example .env
-npx prisma migrate dev --name init
+npx prisma db push   # syncs the schema (users + searches) to MySQL
 ```
 
 ### 2. Backend
@@ -106,10 +111,25 @@ Frontend runs on `http://localhost:3000`.
 1. Search for a product (e.g. "Nutella", "Coca-Cola").
 2. Switch languages with the selector top-right — both UI text and product
    name/ingredients (where OFF has that translation) update.
-3. Click a product — nutrition table is locked.
-4. Click "Subscribe" → completes a Stripe test Checkout (use card
+3. Recent searches appear as clickable chips under the search bar (stored in
+   MySQL and shared via `GET /api/searches`).
+4. Click a product — nutrition table is locked.
+5. Click "Subscribe" → completes a Stripe test Checkout (use card
    `4242 4242 4242 4242`) → redirected back → nutrition unlocks.
-5. "Manage subscription" opens the Stripe customer portal to cancel.
+6. "Manage subscription" opens the Stripe customer portal to cancel.
+
+### 5. Tests
+
+```bash
+cd backend
+npm test            # vitest run
+npm run test:watch  # vitest watch
+```
+
+37 tests cover the access-control gate, Open Food Facts data mapping
+(missing/incomplete fields), search-history persistence, the product/search
+routes, Stripe billing routes, and webhook handling. The Stripe API, Open
+Food Facts, and the database are mocked — no external services needed.
 
 ## Key technical decisions
 
@@ -126,8 +146,24 @@ active Stripe subscription. Every route returning product data funnels
 through it, so there's no route that can "forget" to check entitlement.
 
 **Database-backed subscription status.** Subscription status is stored in
-the MySQL database and updated via Stripe webhooks, rather than checking
-Stripe on every request. This is faster and more reliable.
+the MySQL database and updated via Stripe webhooks. For access control the
+backend still checks Stripe's subscription list on each request (the DB
+column is the source of truth for what the webhook saw, keeping the manual
+"subscription" state visible without an extra Stripe round-trip).
+
+**Recent searches persisted in MySQL.** Every search in `GET
+/api/products/search` writes a row to the `searches` table for the demo user
+via `recordSearch()`. `GET /api/searches` returns the most recent **distinct**
+terms (deduplicated in the service layer, so the DB stays a plain append-only
+log). This keeps write path trivial — Prisma doesn't have to race on unique
+constraints — while the read path still gives the user a useful "recent
+searches" list. There is no user login/auth; all data hangs off the single
+demo user, which is a deliberate simplification for this assignment.
+
+**App is split from server for testability.** `app.ts` builds the Express
+app without calling `listen()`, and `server.ts` starts it. Tests import the
+app directly and drive it with supertest against mocked Stripe, Open Food
+Facts, and Prisma modules — no live database or network calls required.
 
 **Server-side i18n coordination.** The frontend sends a `lang` query
 param (`en`/`nl`/`de`/`fr`) with every product request. The backend maps

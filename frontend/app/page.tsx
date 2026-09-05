@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useLanguage } from "@/context/LanguageContext";
-import { searchProducts, getProduct, getBillingStatus } from "@/lib/api";
+import { searchProducts, getProduct, getBillingStatus, getRecentSearches } from "@/lib/api";
 import LanguageSelector from "@/components/LanguageSelector";
 import SearchBar from "@/components/SearchBar";
 import ProductCard from "@/components/ProductCard";
@@ -24,7 +24,17 @@ export default function Home() {
     configured: false,
     subscribed: false,
   });
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [checkoutNotice, setCheckoutNotice] = useState<"success" | "cancelled" | null>(null);
+
+  const refreshRecentSearches = useCallback(async () => {
+    try {
+      const { terms } = await getRecentSearches();
+      setRecentSearches(terms);
+    } catch (err) {
+      console.error("Could not fetch recent searches:", err);
+    }
+  }, []);
 
   const refreshBillingStatus = useCallback(async () => {
     try {
@@ -44,7 +54,8 @@ export default function Home() {
       window.history.replaceState({}, "", window.location.pathname);
     }
     refreshBillingStatus();
-  }, [refreshBillingStatus]);
+    refreshRecentSearches();
+  }, [refreshBillingStatus, refreshRecentSearches]);
 
   const runSearch = useCallback(
     async (searchTerm: string) => {
@@ -56,6 +67,7 @@ export default function Home() {
       try {
         const data = await searchProducts(searchTerm, lang);
         setResults(data.products);
+        refreshRecentSearches();
       } catch (err) {
         console.error(err);
         setError(t("error"));
@@ -63,7 +75,7 @@ export default function Home() {
         setLoading(false);
       }
     },
-    [lang, t]
+    [lang, t, refreshRecentSearches]
   );
 
   useEffect(() => {
@@ -117,6 +129,21 @@ export default function Home() {
       <main>
         {!selectedProduct && (
           <SearchBar onSearch={runSearch} initialQuery={query} />
+        )}
+
+        {!loading && !selectedProduct && recentSearches.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            <span className="text-sm text-muted">{t("recentSearches")}:</span>
+            {recentSearches.map((term) => (
+              <button
+                key={term}
+                onClick={() => runSearch(term)}
+                className="py-1 px-3 rounded-full text-sm border border-border bg-surface hover:bg-gray-100 cursor-pointer"
+              >
+                {term}
+              </button>
+            ))}
+          </div>
         )}
 
         {loading && (

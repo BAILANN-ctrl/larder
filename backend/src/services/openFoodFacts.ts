@@ -27,11 +27,11 @@ const LANG_MAP: Record<string, string> = {
   fr: "fr",
 };
 
-function resolveLang(lang: string): string {
+export function resolveLang(lang: string): string {
   return LANG_MAP[lang] || "en";
 }
 
-function localized(
+export function localized(
   product: Record<string, any>,
   field: string,
   lang: string
@@ -44,7 +44,7 @@ function localized(
   );
 }
 
-function mapProduct(product: Record<string, any>, lang: string): Product {
+export function mapProduct(product: Record<string, any>, lang: string): Product {
   return {
     id: product.code,
     name: localized(product, "product_name", lang) || "Unknown product",

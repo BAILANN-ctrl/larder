@@ -32,6 +32,10 @@ export function getBillingStatus(): Promise<BillingStatus> {
   return fetch(`${API_URL}/billing/status`).then(handle);
 }
 
+export function getRecentSearches(): Promise<{ terms: string[] }> {
+  return fetch(`${API_URL}/searches`).then(handle);
+}
+
 export function startCheckout(): Promise<{ url: string }> {
   return fetch(`${API_URL}/billing/checkout`, { method: "POST" }).then(handle);
 }
